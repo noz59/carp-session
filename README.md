@@ -89,3 +89,11 @@ Le clic sur la carte affiche désormais un formulaire intégré à la page au li
 - La photo s’affiche dans cette section, puis peut être associée au prochain poste placé sur la carte.
 - Les indices visibles doivent être confirmés manuellement ; aucune analyse automatique par IA n’est effectuée.
 - Cache du service worker versionné en v10.
+
+
+## Version 11 — onglet « Aide au poste »
+
+- Ajout d’un onglet dédié « Aide au poste » dans la navigation principale.
+- Regroupe la comparaison des postes, la photo d’aide au choix, la grille d’indices, l’analyse cartographique et les rappels pratiques.
+- L’onglet « Carte & postes » reste dédié à la carte, à l’enregistrement des postes et à leurs informations.
+- Cache du service worker mis à jour en v11 pour faciliter le chargement de la nouvelle interface.
