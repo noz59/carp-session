@@ -115,6 +115,13 @@ footer{text-align:center;color:var(--muted);font-size:.75rem;padding:8px 10px 20
 </div>
 <div class="card">
 <h2>🎯 Aide au choix du spot</h2>
+<p class="muted">Prends d’abord une photo de la berge ou de la surface de l’eau pour t’aider à examiner le poste. La photo s’affichera ici et sera associée au prochain poste que tu enregistreras sur la carte. L’application ne fait pas d’analyse automatique par IA : coche ensuite les indices que tu confirmes réellement.</p>
+<div class="spot-photo-help">
+  <input id="helpSpotPhotoInput" type="file" accept="image/*" capture="environment" style="display:none">
+  <div class="buttons"><button id="takeHelpSpotPhoto">📷 Prendre une photo pour évaluer le spot</button><button id="clearHelpSpotPhoto" class="secondary" style="display:none">Retirer la photo</button></div>
+  <div id="helpSpotPhotoStatus" class="status" aria-live="polite">Aucune photo prise pour l’aide au choix.</div>
+  <img id="helpSpotPhotoPreview" alt="Photo du spot à examiner" style="display:none;width:100%;max-height:300px;object-fit:contain;border-radius:12px;margin-top:10px;background:#f0f3ef">
+</div>
 <p class="muted">Coche uniquement ce que tu as réellement observé sur place ou confirmé avec une source fiable. Cette grille aide à comparer les postes, sans prédire les touches.</p>
 <h3>Indices favorables observés</h3>
 <div class="spotchecks">
@@ -178,6 +185,23 @@ $('refreshWeather').addEventListener('click',getWeather);
 async function getWeather(){if(!coords){$('weatherStatus').textContent='Choisis un lieu ou utilise le GPS.';return}$('weatherStatus').textContent='Chargement des prévisions météo…';$('weatherMetrics').innerHTML='';$('hourly').innerHTML='';try{const u=`https://api.open-meteo.com/v1/forecast?latitude=${coords.lat}&longitude=${coords.lon}&hourly=temperature_2m,apparent_temperature,precipitation_probability,precipitation,wind_speed_10m,wind_gusts_10m,wind_direction_10m,pressure_msl,cloud_cover&daily=temperature_2m_max,temperature_2m_min,precipitation_probability_max&forecast_days=7&timezone=auto`;const r=await fetch(u);if(!r.ok)throw Error('Météo indisponible');const d=await r.json();const h=d.hourly;const now=new Date();let idx=h.time.findIndex(t=>new Date(t)>=new Date(now.getTime()-30*60000));if(idx<0)idx=0;const at=(key)=>h[key][idx];const windDir=deg=>{const dirs=['N','NE','E','SE','S','SO','O','NO'];return dirs[Math.round(deg/45)%8]};const metrics=[['Température',`${Math.round(at('temperature_2m'))} °C`],['Ressenti',`${Math.round(at('apparent_temperature'))} °C`],['Vent',`${Math.round(at('wind_speed_10m'))} km/h ${windDir(at('wind_direction_10m'))}`],['Rafales',`${Math.round(at('wind_gusts_10m'))} km/h`],['Risque de pluie',`${at('precipitation_probability')} %`],['Pluie',`${at('precipitation')} mm`],['Pression',`${Math.round(at('pressure_msl'))} hPa`],['Nuages',`${at('cloud_cover')} %`]];$('weatherMetrics').innerHTML=metrics.map(m=>`<div class="metric"><div class="k">${m[0]}</div><div class="v">${m[1]}</div></div>`).join('');$('weatherStatus').textContent=`Prévisions horaires · ${d.timezone||'heure locale'} · actualisées à la demande`;let cards='';for(let i=idx;i<Math.min(idx+24,h.time.length);i+=2){const time=new Date(h.time[i]);cards+=`<div class="hour"><small>${time.toLocaleDateString('fr-FR',{weekday:'short'})}</small><strong>${time.toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'})}</strong><div>${Math.round(h.temperature_2m[i])} °C</div><small>Pluie ${h.precipitation_probability[i]}%</small><small>Vent ${Math.round(h.wind_speed_10m[i])} km/h</small></div>`}$('hourly').innerHTML=cards||'<div class="empty">Aucune prévision horaire disponible.</div>';$('weatherNote').textContent='Prévisions fournies par Open-Meteo. Elles restent indicatives et ne prédisent pas directement l’activité des carpes.';updateAdvice(d)}catch(e){$('weatherStatus').textContent='Météo indisponible pour le moment. Vérifie ta connexion ou réessaie.';$('weatherNote').textContent='La météo ne peut pas être estimée sans données.'}}
 function updateAdvice(weather){const s=$('season').value,t=coords?$('weatherMetrics').innerText:'';let advice='';if(s==='Hiver')advice='Privilégie les zones plus profondes et stables, repère les poissons avant de t’installer et commence par un amorçage léger. Les fenêtres les plus douces de la journée peuvent être intéressantes.';else if(s==='Printemps')advice='Cherche les secteurs qui se réchauffent, les faibles profondeurs ensoleillées et les bordures actives. Reste mobile et ajuste l’amorçage aux signes d’activité.';else if(s==='Été')advice='Teste les bordures ombragées, les herbiers et les secteurs oxygénés, surtout tôt le matin et le soir. En période chaude, surveille la température et la sécurité des poissons.';else advice='Explore les zones de passage, les bordures encore actives, les herbiers résiduels et les cassures. Teste les postes avant d’augmenter l’amorçage.';if($('waterType').value==='Canal / rivière')advice+=' En canal ou rivière, privilégie les zones de courant ralenti, contre-courants et fosses, en tenant compte du niveau d’eau.';if($('waterType').value==='Lac')advice+=' En lac, recherche plateaux, cassures et anciennes berges à l’aide de cartes bathymétriques fiables si disponibles.';if($('waterType').value==='Étang')advice+=' En étang, inspecte les bordures, herbiers, arrivées d’eau et variations de fond visibles.';if($('experience').value==='Débutant')advice+=' Pour simplifier : commence avec deux montages fiables sur des zones différentes et note les résultats.';if(t.includes('Rafales')&&coords){const m=t.match(/Rafales\s+(\d+)\s+km\/h/);if(m&&+m[1]>=45)advice+=' Les rafales sont fortes : sécurise le matériel et évite les berges exposées.'}$('advice').textContent=advice}
 $('rankSeason').value=$('season').value; $('season').addEventListener('change',()=>{$('rankSeason').value=$('season').value;updateAdvice()}); $('rankSeason').addEventListener('change',()=>{$('season').value=$('rankSeason').value;updateAdvice()});$('waterType').addEventListener('change',updateAdvice);$('experience').addEventListener('change',updateAdvice);
+$('takeHelpSpotPhoto').addEventListener('click',()=>$('helpSpotPhotoInput').click());
+$('helpSpotPhotoInput').addEventListener('change',async e=>{
+ const file=e.target.files&&e.target.files[0];if(!file)return;
+ if(!file.type.startsWith('image/')){$('helpSpotPhotoStatus').textContent='Choisis un fichier image.';return;}
+ $('helpSpotPhotoStatus').textContent='Préparation de la photo…';
+ try{
+  const data=await compressSpotPhoto(file);pendingSpotPhoto=data;
+  $('helpSpotPhotoPreview').src=data;$('helpSpotPhotoPreview').style.display='block';$('clearHelpSpotPhoto').style.display='inline-block';
+  $('helpSpotPhotoStatus').textContent='Photo prête. Coche les indices visibles, puis ajoute un poste sur la carte pour conserver la photo avec lui.';
+  $('spotPhotoStatus').textContent='Photo prête depuis « Aide au choix du spot » ; elle sera associée au prochain poste enregistré.';
+ }catch(err){$('helpSpotPhotoStatus').textContent='Impossible de lire cette photo. Réessaie.';}
+});
+$('clearHelpSpotPhoto').addEventListener('click',()=>{
+ $('helpSpotPhotoInput').value='';$('helpSpotPhotoPreview').removeAttribute('src');$('helpSpotPhotoPreview').style.display='none';$('clearHelpSpotPhoto').style.display='none';
+ if(pendingSpotPhoto){pendingSpotPhoto='';$('spotPhotoInput').value='';}
+ $('helpSpotPhotoStatus').textContent='Photo retirée.';
+});
 $('takeSpotPhoto').addEventListener('click',()=>$('spotPhotoInput').click());
 $('spotPhotoInput').addEventListener('change',async e=>{
   const file=e.target.files&&e.target.files[0]; if(!file)return;
@@ -265,7 +289,7 @@ function saveNewPost(){
  const post={id:Date.now(),name,lat,lon,date:fmtDate(new Date()),photo:pendingSpotPhoto||'',observation,bait,groundbait,hook,catches:[]};
  posts.push(post);
  try{savePosts();}catch(e){posts.pop();$('newPostStatus').textContent='Stockage plein. Exporte tes données ou retire une photo avant de réessayer.';return;}
- pendingSpotPhoto='';$('spotPhotoInput').value='';$('spotPhotoPreview').removeAttribute('src');$('spotPhotoPreview').style.display='none';$('clearSpotPhoto').style.display='none';$('spotPhotoStatus').textContent='Photo associée au poste enregistré.';
+ pendingSpotPhoto='';$('spotPhotoInput').value='';$('spotPhotoPreview').removeAttribute('src');$('spotPhotoPreview').style.display='none';$('clearSpotPhoto').style.display='none';$('helpSpotPhotoInput').value='';$('helpSpotPhotoPreview').removeAttribute('src');$('helpSpotPhotoPreview').style.display='none';$('clearHelpSpotPhoto').style.display='none';$('helpSpotPhotoStatus').textContent='Photo enregistrée avec le poste.';$('spotPhotoStatus').textContent='Photo associée au poste enregistré.';
  $('newPostForm').style.display='none';$('newPostStatus').textContent='Poste enregistré sur cet appareil.';renderPosts();
  if(map&&posts.length){const p=posts[posts.length-1];map.setView([p.lat,p.lon],Math.max(map.getZoom(),15));if(p._marker)p._marker.openPopup();}
 }

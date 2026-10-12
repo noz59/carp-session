@@ -81,3 +81,11 @@ Pour chaque nouveau poste, tu peux enregistrer le type d’appâts utilisés, la
 ## Version 9 — ajout de poste fiabilisé
 
 Le clic sur la carte affiche désormais un formulaire intégré à la page au lieu d’une fenêtre JavaScript prompt. Après avoir touché la carte, saisis un nom puis appuie sur « Enregistrer le poste ». Les informations d’appâts, amorçage, hameçon et la photo du spot sont associées au poste. Cache service worker mis à jour en v9.
+
+
+## Version 10 — prise de vue dans l’aide au choix du spot
+
+- Ajout d’un bouton « Prendre une photo pour évaluer le spot » directement dans « Aide au choix du spot ».
+- La photo s’affiche dans cette section, puis peut être associée au prochain poste placé sur la carte.
+- Les indices visibles doivent être confirmés manuellement ; aucune analyse automatique par IA n’est effectuée.
+- Cache du service worker versionné en v10.
