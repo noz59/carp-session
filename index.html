@@ -69,6 +69,14 @@ footer{text-align:center;color:var(--muted);font-size:.75rem;padding:8px 10px 20
 <h2>🗺️ Carte et postes potentiels</h2>
 <p class="muted">Appuie sur la carte pour marquer un poste que tu as repéré. Les repères sont tes notes personnelles, pas des spots à carpes vérifiés.</p>
 <div id="map"></div>
+<div id="newPostForm" class="card" style="display:none;margin-top:12px">
+<h3>📍 Enregistrer ce poste</h3>
+<p id="newPostStatus" class="status" aria-live="polite">Emplacement choisi sur la carte.</p>
+<label for="newPostName">Nom du poste</label>
+<input id="newPostName" type="text" maxlength="80" placeholder="Ex. baie près des roseaux">
+<input id="newPostLat" type="hidden"><input id="newPostLon" type="hidden">
+<div class="buttons"><button id="saveNewPost">Enregistrer le poste</button><button id="cancelNewPost" class="secondary">Annuler</button></div>
+</div>
 <div class="buttons"><button id="addPost" class="secondary">＋ Ajouter un poste sur la carte</button><button id="clearPosts" class="danger">Effacer mes postes</button></div>
 <div id="posts"></div>
 </div>
@@ -242,8 +250,28 @@ function rankSpots(){
   document.querySelectorAll('[data-rank-center]').forEach(b=>b.onclick=()=>{const p=posts.find(x=>String(x.id)===b.dataset.rankCenter);if(!p)return;document.querySelector('[data-tab="maptab"]').click();if(mapReady){map.setView([p.lat,p.lon],17);if(p._marker)p._marker.openPopup();}});
 }
 
-function addPostAt(lat,lon){const name=prompt('Nom ou observation de ce poste ?',pendingSpotPhoto?'Poste photographié':'Poste à tester');if(name===null)return;const observation=$('photoObservations').value;const bait=$('spotBait').value.trim();const groundbait=$('spotGroundbait').value.trim();const hook=$('spotHook').value.trim();const post={id:Date.now(),name:name.trim()||'Poste à tester',lat,lon,date:fmtDate(new Date()),photo:pendingSpotPhoto||'',observation,bait,groundbait,hook};posts.push(post);try{savePosts();}catch(e){posts.pop();alert('Le stockage est plein. Retire une photo ou exporte tes données avant de réessayer.');return;}pendingSpotPhoto='';$('spotPhotoInput').value='';$('spotPhotoPreview').removeAttribute('src');$('spotPhotoPreview').style.display='none';$('clearSpotPhoto').style.display='none';$('spotPhotoStatus').textContent='Poste enregistré sur cet appareil.';renderPosts()}
-$('addPost').addEventListener('click',()=>{if(!mapReady){initMap(coords?.lat||50.36,coords?.lon||3.52)}alert('Appuie sur la carte à l’endroit du poste que tu veux noter.');setTimeout(()=>map.invalidateSize(),80)});
+function addPostAt(lat,lon){
+ $('newPostLat').value=lat;$('newPostLon').value=lon;
+ $('newPostName').value=pendingSpotPhoto?'Poste photographié':'Poste à tester';
+ $('newPostForm').style.display='block';
+ $('newPostStatus').textContent=`Emplacement choisi : ${lat.toFixed(5)}, ${lon.toFixed(5)}. Donne un nom puis enregistre.`;
+ $('newPostForm').scrollIntoView({behavior:'smooth',block:'nearest'});
+}
+function saveNewPost(){
+ const lat=Number($('newPostLat').value),lon=Number($('newPostLon').value);
+ if(!Number.isFinite(lat)||!Number.isFinite(lon)||Math.abs(lat)>90||Math.abs(lon)>180){$('newPostStatus').textContent='Emplacement invalide. Touche à nouveau la carte.';return;}
+ const name=$('newPostName').value.trim()||'Poste à tester';
+ const observation=$('photoObservations').value,bait=$('spotBait').value.trim(),groundbait=$('spotGroundbait').value.trim(),hook=$('spotHook').value.trim();
+ const post={id:Date.now(),name,lat,lon,date:fmtDate(new Date()),photo:pendingSpotPhoto||'',observation,bait,groundbait,hook,catches:[]};
+ posts.push(post);
+ try{savePosts();}catch(e){posts.pop();$('newPostStatus').textContent='Stockage plein. Exporte tes données ou retire une photo avant de réessayer.';return;}
+ pendingSpotPhoto='';$('spotPhotoInput').value='';$('spotPhotoPreview').removeAttribute('src');$('spotPhotoPreview').style.display='none';$('clearSpotPhoto').style.display='none';$('spotPhotoStatus').textContent='Photo associée au poste enregistré.';
+ $('newPostForm').style.display='none';$('newPostStatus').textContent='Poste enregistré sur cet appareil.';renderPosts();
+ if(map&&posts.length){const p=posts[posts.length-1];map.setView([p.lat,p.lon],Math.max(map.getZoom(),15));if(p._marker)p._marker.openPopup();}
+}
+$('saveNewPost').addEventListener('click',saveNewPost);
+$('cancelNewPost').addEventListener('click',()=>{$('newPostForm').style.display='none';$('newPostStatus').textContent='Ajout annulé.';});
+$('addPost').addEventListener('click',()=>{if(!mapReady){initMap(coords?.lat||50.36,coords?.lon||3.52)}$('locStatus').textContent='Mode ajout : touche l’emplacement souhaité sur la carte. Un formulaire apparaîtra pour enregistrer le poste.';setTimeout(()=>map.invalidateSize(),120);map.getContainer().scrollIntoView({behavior:'smooth',block:'center'});});
 $('clearPosts').addEventListener('click',()=>{if(confirm('Effacer tous tes postes enregistrés sur cet appareil ?')){posts=[];localStorage.setItem('carpPosts','[]');renderPosts()}});
 function renderPosts(){
  if(!mapReady)return;
