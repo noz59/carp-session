@@ -115,6 +115,38 @@ footer{text-align:center;color:var(--muted);font-size:.75rem;padding:8px 10px 20
 <div id="rankResults"></div>
 <p class="muted">Les indices viennent de tes observations manuelles. La météo affichée est celle du lieu de session sélectionné ; elle n’est pas recalculée séparément pour chaque poste. La photo n’est pas analysée automatiquement par une IA.</p>
 </div>
+
+<div class="card" id="aiSpotCard">
+<h2>🤖 Analyse IA de la photo</h2>
+<p class="muted">Envoie une photo du plan d’eau à l’assistant IA pour repérer les structures visibles et obtenir des zones à tester. L’analyse nécessite Internet et une configuration Supabase.</p>
+<div class="row">
+  <div><label for="aiSupabaseUrl">URL du projet Supabase</label><input id="aiSupabaseUrl" type="url" placeholder="https://xxxx.supabase.co" autocomplete="url"></div>
+  <div><label for="aiSupabaseKey">Clé publique anon</label><input id="aiSupabaseKey" type="password" placeholder="Clé anon/public du projet" autocomplete="off"></div>
+</div>
+<button id="aiSaveConfig" class="secondary" style="width:100%;margin-top:8px">Enregistrer la configuration</button>
+<div class="row" style="margin-top:10px">
+  <div><label for="aiEmail">E-mail du compte</label><input id="aiEmail" type="email" placeholder="toi@exemple.fr" autocomplete="username"></div>
+  <div><label for="aiPassword">Mot de passe</label><input id="aiPassword" type="password" placeholder="Mot de passe" autocomplete="current-password"></div>
+</div>
+<div class="buttons" style="margin-top:8px">
+  <button id="aiSignIn">Se connecter</button>
+  <button id="aiSignUp" class="secondary">Créer un compte</button>
+  <button id="aiSignOut" class="secondary" style="display:none">Se déconnecter</button>
+</div>
+<div id="aiAuthStatus" class="status" aria-live="polite">Configure Supabase puis connecte-toi pour analyser une photo.</div>
+<label for="aiPhotoInput">Photo du plan d’eau</label>
+<input id="aiPhotoInput" type="file" accept="image/*" capture="environment">
+<img id="aiPhotoPreview" alt="Aperçu de la photo à analyser" style="display:none;width:100%;max-height:300px;object-fit:contain;border-radius:12px;margin-top:10px;background:#f0f3ef">
+<div class="row" style="margin-top:10px">
+  <div><label for="aiSeason">Saison</label><select id="aiSeason"><option>Printemps</option><option>Été</option><option selected>Automne</option><option>Hiver</option></select></div>
+  <div><label for="aiWeather">Conditions observées</label><select id="aiWeather"><option>Non renseignées</option><option>Vent faible</option><option>Vent vers la berge photographiée</option><option>Vent s’éloignant de la berge</option><option>Temps chaud</option><option>Temps froid</option><option>Pluie récente</option></select></div>
+</div>
+<button id="aiAnalyzePhoto" style="width:100%;margin-top:10px">🔎 Analyser la photo avec l’IA</button>
+<div id="aiAnalysisStatus" class="status" aria-live="polite">Aucune analyse effectuée.</div>
+<div id="aiAnalysisResult" class="spotresult" aria-live="polite" style="white-space:pre-wrap"></div>
+<p class="muted">L’IA ne peut pas confirmer la présence de carpes ni déduire avec certitude la profondeur ou la nature du fond à partir d’une simple photo. Vérifie toujours l’accès, le règlement et la sécurité sur place.</p>
+</div>
+
 <div class="card">
 <h2>🎯 Aide au choix du spot</h2>
 <p class="muted">Prends d’abord une photo de la berge ou de la surface de l’eau pour t’aider à examiner le poste. La photo s’affichera ici et sera associée au prochain poste que tu enregistreras sur la carte. L’application ne fait pas d’analyse automatique par IA : coche ensuite les indices que tu confirmes réellement.</p>
@@ -383,5 +415,139 @@ $('exportLogs').addEventListener('click',()=>{const data={sessions:getLogs(),pos
 initMap();renderLogs();renderPosts();updateAdvice();
 if('serviceWorker' in navigator && location.protocol.startsWith('http'))navigator.serviceWorker.register('./sw.js').catch(()=>{});
 </script>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script>
+(function(){
+  const $ai = id => document.getElementById(id);
+  const cfgKey = 'carpSessionAiSupabaseConfig';
+  let client = null, currentPhotoDataUrl = null, currentSession = null;
+  function status(id, msg){ const el=$ai(id); if(el) el.textContent=msg; }
+  function readCfg(){
+    try { return JSON.parse(localStorage.getItem(cfgKey)||'{}'); } catch(e){ return {}; }
+  }
+  function saveCfg(){
+    const url=$ai('aiSupabaseUrl').value.trim().replace(/\/+$/,'');
+    const key=$ai('aiSupabaseKey').value.trim();
+    if(!/^https:\/\/[a-zA-Z0-9.-]+\.supabase\.co$/.test(url) || !key){
+      status('aiAuthStatus','Renseigne une URL Supabase valide et la clé publique anon.');
+      return false;
+    }
+    localStorage.setItem(cfgKey, JSON.stringify({url,key}));
+    initClient();
+    status('aiAuthStatus','Configuration enregistrée sur cet appareil. Connecte-toi à ton compte.');
+    return true;
+  }
+  function initClient(){
+    const cfg=readCfg();
+    if(!cfg.url || !cfg.key || !window.supabase || !window.supabase.createClient) { client=null; return; }
+    if(!client) client=window.supabase.createClient(cfg.url,cfg.key,{auth:{persistSession:true,autoRefreshToken:true,detectSessionInUrl:true}});
+    return client;
+  }
+  async function refreshSession(){
+    if(!client) initClient();
+    if(!client){ status('aiAuthStatus','Configure Supabase et vérifie que la connexion Internet est disponible.'); return; }
+    const {data,error}=await client.auth.getSession();
+    currentSession=data && data.session;
+    if(error) status('aiAuthStatus','Erreur de session : '+error.message);
+    else if(currentSession){
+      status('aiAuthStatus','Connecté : '+(currentSession.user.email||'compte membre')+'. Tu peux analyser une photo.');
+      $ai('aiSignOut').style.display='inline-flex';
+    } else {
+      status('aiAuthStatus','Configuration prête. Connecte-toi ou crée un compte.');
+      $ai('aiSignOut').style.display='none';
+    }
+  }
+  function resizeImage(file){
+    return new Promise((resolve,reject)=>{
+      if(!file || !file.type.startsWith('image/')) return reject(new Error('Choisis un fichier image.'));
+      const reader=new FileReader();
+      reader.onerror=()=>reject(new Error('Impossible de lire cette photo.'));
+      reader.onload=()=>{
+        const img=new Image();
+        img.onerror=()=>reject(new Error('Cette image ne peut pas être ouverte.'));
+        img.onload=()=>{
+          const max=1400, scale=Math.min(1,max/Math.max(img.width,img.height));
+          const canvas=document.createElement('canvas');
+          canvas.width=Math.max(1,Math.round(img.width*scale));
+          canvas.height=Math.max(1,Math.round(img.height*scale));
+          canvas.getContext('2d').drawImage(img,0,0,canvas.width,canvas.height);
+          resolve(canvas.toDataURL('image/jpeg',0.78));
+        };
+        img.src=reader.result;
+      };
+      reader.readAsDataURL(file);
+    });
+  }
+  $ai('aiSaveConfig').addEventListener('click',()=>{ if(saveCfg()) refreshSession(); });
+  const saved=readCfg();
+  if(saved.url) $ai('aiSupabaseUrl').value=saved.url;
+  if(saved.key) $ai('aiSupabaseKey').value=saved.key;
+  $ai('aiSignIn').addEventListener('click',async()=>{
+    if(!client && !saveCfg()) return;
+    initClient();
+    const email=$ai('aiEmail').value.trim(), password=$ai('aiPassword').value;
+    if(!email || !password){status('aiAuthStatus','Saisis ton e-mail et ton mot de passe.');return;}
+    status('aiAuthStatus','Connexion en cours…');
+    const {data,error}=await client.auth.signInWithPassword({email,password});
+    if(error){status('aiAuthStatus','Connexion impossible : '+error.message);return;}
+    currentSession=data.session; await refreshSession();
+  });
+  $ai('aiSignUp').addEventListener('click',async()=>{
+    if(!client && !saveCfg()) return;
+    initClient();
+    const email=$ai('aiEmail').value.trim(), password=$ai('aiPassword').value;
+    if(!email || password.length<8){status('aiAuthStatus','Saisis un e-mail et un mot de passe de 8 caractères minimum.');return;}
+    status('aiAuthStatus','Création du compte en cours…');
+    const {data,error}=await client.auth.signUp({email,password});
+    if(error){status('aiAuthStatus','Création impossible : '+error.message);return;}
+    status('aiAuthStatus',data.session?'Compte créé et connecté.':'Compte créé. Vérifie ton e-mail si Supabase demande une confirmation.');
+    await refreshSession();
+  });
+  $ai('aiSignOut').addEventListener('click',async()=>{
+    if(client) await client.auth.signOut();
+    currentSession=null; await refreshSession();
+  });
+  $ai('aiPhotoInput').addEventListener('change',async e=>{
+    const file=e.target.files && e.target.files[0];
+    currentPhotoDataUrl=null; $ai('aiPhotoPreview').style.display='none';
+    if(!file){status('aiAnalysisStatus','Aucune photo sélectionnée.');return;}
+    status('aiAnalysisStatus','Préparation de la photo…');
+    try{
+      currentPhotoDataUrl=await resizeImage(file);
+      $ai('aiPhotoPreview').src=currentPhotoDataUrl;
+      $ai('aiPhotoPreview').style.display='block';
+      status('aiAnalysisStatus','Photo prête. Appuie sur « Analyser la photo avec l’IA ».');
+    }catch(err){status('aiAnalysisStatus',err.message);}
+  });
+  $ai('aiAnalyzePhoto').addEventListener('click',async()=>{
+    if(!client && !initClient()){status('aiAnalysisStatus','Configure d’abord le projet Supabase.');return;}
+    if(!currentPhotoDataUrl){status('aiAnalysisStatus','Prends ou sélectionne d’abord une photo.');return;}
+    const {data:sessionData,error:sessionError}=await client.auth.getSession();
+    const session=sessionData && sessionData.session;
+    if(sessionError || !session){status('aiAnalysisStatus','Connecte-toi à ton compte avant l’analyse.');return;}
+    const cfg=readCfg();
+    status('aiAnalysisStatus','Analyse en cours. La photo est envoyée au service IA configuré…');
+    $ai('aiAnalyzePhoto').disabled=true;
+    $ai('aiAnalysisResult').textContent='';
+    try{
+      const response=await fetch(cfg.url+'/functions/v1/analyze-spot',{
+        method:'POST',
+        headers:{'Content-Type':'application/json','apikey':cfg.key,'Authorization':'Bearer '+session.access_token},
+        body:JSON.stringify({imageDataUrl:currentPhotoDataUrl,season:$ai('aiSeason').value,weather:$ai('aiWeather').value})
+      });
+      const result=await response.json().catch(()=>({error:'Réponse illisible du serveur.'}));
+      if(!response.ok) throw new Error(result.error || result.message || ('Erreur serveur '+response.status));
+      $ai('aiAnalysisResult').textContent=result.analysis || result.output || 'Aucun résultat textuel reçu.';
+      status('aiAnalysisStatus','Analyse terminée. Vérifie les observations et les conditions réelles sur place.');
+    }catch(err){
+      status('aiAnalysisStatus','Analyse impossible : '+err.message+'. Vérifie la connexion, la configuration et le déploiement de la fonction serveur.');
+    }finally{$ai('aiAnalyzePhoto').disabled=false;}
+  });
+  if(window.supabase && window.supabase.createClient){ initClient(); refreshSession(); }
+  else status('aiAuthStatus','La bibliothèque Supabase n’a pas pu charger. Vérifie la connexion Internet puis recharge la page.');
+})();
+</script>
+
 </body>
 </html>

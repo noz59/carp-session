@@ -97,3 +97,29 @@ Le clic sur la carte affiche désormais un formulaire intégré à la page au li
 - Regroupe la comparaison des postes, la photo d’aide au choix, la grille d’indices, l’analyse cartographique et les rappels pratiques.
 - L’onglet « Carte & postes » reste dédié à la carte, à l’enregistrement des postes et à leurs informations.
 - Cache du service worker mis à jour en v11 pour faciliter le chargement de la nouvelle interface.
+
+
+## Version 12 — Analyse IA des photos (configuration requise)
+
+Cette archive ajoute une interface « Analyse IA de la photo » dans l'onglet « Aide au poste » et une fonction Supabase Edge Function qui appelle l'API OpenAI. **L'analyse ne fonctionne pas tant que Supabase et le secret OpenAI ne sont pas configurés.**
+
+### Mise en place
+
+1. Publier le contenu de `carp_session/` à la racine du dépôt GitHub Pages, comme pour la version précédente.
+2. Créer un projet sur https://supabase.com/ et activer l'authentification par e-mail/mot de passe.
+3. Dans `supabase/functions/analyze-spot/index.ts`, déployer la fonction `analyze-spot` avec Supabase CLI depuis la racine de ce paquet :
+   - `supabase login`
+   - `supabase link --project-ref VOTRE_PROJECT_REF`
+   - `supabase secrets set OPENAI_API_KEY=VOTRE_CLE_API_OPENAI`
+   - `supabase functions deploy analyze-spot`
+4. Conserver la vérification JWT activée. Dans Carp Session, saisir l'URL du projet Supabase et la clé publique `anon` (ou publishable) ; ne jamais saisir une clé `service_role` dans le navigateur.
+5. Créer un compte utilisateur dans l'interface, puis se connecter et lancer une analyse photo. La première connexion peut nécessiter la confirmation de l'e-mail selon les paramètres Supabase.
+6. Vérifier dans les paramètres d'authentification Supabase que les URL autorisées incluent l'adresse GitHub Pages du site.
+
+### Important
+
+- La clé `OPENAI_API_KEY` doit rester dans les secrets serveur Supabase, jamais dans les fichiers HTML ou JavaScript publics.
+- Les appels à l'IA peuvent entraîner des coûts OpenAI. Configurez des limites et surveillez l'usage.
+- Cette version analyse une photo à la demande, mais ne synchronise pas encore les postes ni les photos entre les membres. La base partagée des postes est une étape séparée.
+- Les données locales de la version précédente restent stockées dans le navigateur si le même site et la même origine sont conservés. Faites un export de sauvegarde avant la mise à jour.
+- La photo est redimensionnée côté navigateur avant envoi à l'IA. Ne transmettez que des photos que vous acceptez d'envoyer à un service en ligne.
