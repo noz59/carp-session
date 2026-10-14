@@ -132,3 +132,7 @@ Cette archive ajoute une interface « Analyse IA de la photo » dans l'onglet «
 - Les postes conservent localement la date/heure, latitude, longitude, précision GPS et cap en degrés lorsqu'ils sont disponibles.
 - La carte affiche une ligne directionnelle indicative de 80 m pour les postes dont le cap est disponible.
 - Les données restent dans le stockage local de l'appareil. Le GPS et le compas dépendent des autorisations, du navigateur, du matériel et des conditions de réception ; le cap n'est pas garanti sur tous les iPhone/navigateurs.
+
+
+## Correctif v17
+Cette version incrémente le cache du service worker et supprime les anciens caches à l'activation afin d'éviter que l'iPhone continue à afficher une ancienne version de l'interface. Le champ « Température de l’eau » se trouve dans l’onglet « Préparer » ; il est enregistré localement avec le bouton « Enregistrer ».
