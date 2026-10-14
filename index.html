@@ -50,16 +50,17 @@ footer{text-align:center;color:var(--muted);font-size:.75rem;padding:8px 10px 20
 </div>
 <p class="muted">La météo est récupérée pour le point sélectionné. Les prévisions au-delà de la période disponible ne seront pas inventées.</p>
 </div>
+<div class="card" id="waterTempCard">
+<h2>🌡️ Température de l’eau</h2>
+<p class="muted">Mesure-la avec un thermomètre au bord de l’étang ou du lac. Elle ne peut pas être déduite précisément de la météo de l’air.</p>
+<label for="waterTemp">Température mesurée (°C)</label>
+<div class="row"><input id="waterTemp" type="number" inputmode="decimal" min="0" max="40" step="0.1" placeholder="Ex. 16,5"><button id="saveWaterTemp" type="button">Enregistrer</button></div>
+<div id="waterTempStatus" class="status" style="margin-top:8px" aria-live="polite">Aucune température enregistrée.</div>
+</div>
 <div class="card">
 <h2>🌦️ Météo du lieu</h2>
 <div id="weatherStatus" class="muted">Choisis un lieu ou autorise le GPS pour charger les prévisions.</div>
 <div class="weather-grid" id="weatherMetrics"></div>
-<div class="card" style="margin:10px 0 0;padding:12px;background:#f9fbf8;box-shadow:none">
-<h3 style="margin-top:0">🌡️ Température de l’eau</h3>
-<label for="waterTemp">Température mesurée (°C)</label>
-<div class="row"><input id="waterTemp" type="number" inputmode="decimal" min="0" max="40" step="0.1" placeholder="Ex. 16,5"><button id="saveWaterTemp" class="secondary" type="button">Enregistrer</button></div>
-<div id="waterTempStatus" class="muted" style="margin-top:6px">À mesurer avec un thermomètre : la température de l’eau d’un étang ou d’un lac ne peut pas être déduite fiablement de la météo de l’air.</div>
-</div>
 <h3>Prévisions heure par heure</h3><div class="hourly" id="hourly"><div class="empty">La météo apparaîtra ici.</div></div>
 <div id="weatherNote" class="muted"></div>
 </div>
@@ -210,8 +211,8 @@ footer{text-align:center;color:var(--muted);font-size:.75rem;padding:8px 10px 20
 <script>
 const $=id=>document.getElementById(id);
 let coords=null, map=null, mapReady=false, selectedMarker=null, pendingSpotPhoto='', pendingPhotoMeta={}, latestHeading=null, latestHeadingAccuracy=null, compassListening=false, latestWeatherSnapshot=null, posts=JSON.parse(localStorage.getItem('carpPosts')||'[]').map(p=>({...p,catches:Array.isArray(p.catches)?p.catches:[]}));
-try{const savedWater=localStorage.getItem('carpWaterTemp');if(savedWater!==null)$('waterTemp').value=savedWater;}catch(e){}
-$('saveWaterTemp').addEventListener('click',()=>{const raw=$('waterTemp').value; if(raw===''||!Number.isFinite(Number(raw))||Number(raw)<0||Number(raw)>40){$('waterTempStatus').textContent='Saisis une température d’eau valide entre 0 et 40 °C.';return;}localStorage.setItem('carpWaterTemp',String(Number(raw)));$('waterTempStatus').textContent=`Température de l’eau enregistrée : ${Number(raw).toLocaleString('fr-FR')} °C. Elle sera ajoutée aux prochains postes enregistrés.`;});
+try{const savedWater=localStorage.getItem('carpWaterTemp');if(savedWater!==null){$('waterTemp').value=savedWater;$('waterTempStatus').textContent=`Température enregistrée : ${Number(savedWater).toLocaleString('fr-FR')} °C.`;}}catch(e){}
+$('saveWaterTemp').addEventListener('click',()=>{const raw=$('waterTemp').value; if(raw===''||!Number.isFinite(Number(raw))||Number(raw)<0||Number(raw)>40){$('waterTempStatus').textContent='Saisis une température d’eau valide entre 0 et 40 °C.';return;}localStorage.setItem('carpWaterTemp',String(Number(raw)));$('waterTempStatus').textContent=`✓ Température de l’eau enregistrée : ${Number(raw).toLocaleString('fr-FR')} °C. Elle sera utilisée pour le classement des spots, y compris ceux déjà enregistrés sans température propre.`;});
 function startCompass(){
  if(compassListening)return;
  const start=()=>{window.addEventListener('deviceorientationabsolute',onOrientation,true);window.addEventListener('deviceorientation',onOrientation,true);compassListening=true;};
