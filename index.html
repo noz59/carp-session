@@ -203,7 +203,22 @@ footer{text-align:center;color:var(--muted);font-size:.75rem;padding:8px 10px 20
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script>
 <script>
 const $=id=>document.getElementById(id);
-let coords=null, map=null, mapReady=false, selectedMarker=null, pendingSpotPhoto='', posts=JSON.parse(localStorage.getItem('carpPosts')||'[]').map(p=>({...p,catches:Array.isArray(p.catches)?p.catches:[]}));
+let coords=null, map=null, mapReady=false, selectedMarker=null, pendingSpotPhoto='', pendingPhotoMeta={}, latestHeading=null, latestHeadingAccuracy=null, compassListening=false, posts=JSON.parse(localStorage.getItem('carpPosts')||'[]').map(p=>({...p,catches:Array.isArray(p.catches)?p.catches:[]}));
+function startCompass(){
+ if(compassListening)return;
+ const start=()=>{window.addEventListener('deviceorientationabsolute',onOrientation,true);window.addEventListener('deviceorientation',onOrientation,true);compassListening=true;};
+ if(typeof DeviceOrientationEvent!=='undefined' && typeof DeviceOrientationEvent.requestPermission==='function'){
+   DeviceOrientationEvent.requestPermission().then(state=>{if(state==='granted')start();}).catch(()=>{});
+ }else if(typeof DeviceOrientationEvent!=='undefined'){start();}
+}
+function onOrientation(e){
+ let h=Number.isFinite(e.webkitCompassHeading)?e.webkitCompassHeading:(Number.isFinite(e.alpha)?(360-e.alpha)%360:null);
+ if(h!==null){latestHeading=(h+360)%360;latestHeadingAccuracy=Number.isFinite(e.webkitCompassAccuracy)?e.webkitCompassAccuracy:null;}
+}
+function getPhotoGps(){return new Promise(resolve=>{if(!navigator.geolocation){resolve(null);return;}navigator.geolocation.getCurrentPosition(p=>resolve({lat:p.coords.latitude,lon:p.coords.longitude,accuracy:p.coords.accuracy, timestamp:p.timestamp}),()=>resolve(null),{enableHighAccuracy:true,timeout:12000,maximumAge:0});});}
+function headingLabel(h){if(!Number.isFinite(h))return 'non disponible';return `${Math.round(h)}°`;}
+function gpsMetaLabel(m){return m&&Number.isFinite(m.lat)&&Number.isFinite(m.lon)?`${m.lat.toFixed(6)}, ${m.lon.toFixed(6)} (±${Math.round(m.accuracy||0)} m)`:'GPS non disponible';}
+
 function savePosts(){const clean=posts.map(({_shown,_marker,...p})=>p);localStorage.setItem('carpPosts',JSON.stringify(clean));}
 const fmtDate=(d)=>d.toISOString().slice(0,10);
 const today=new Date(); $('sessionDate').value=fmtDate(today); $('logDate').value=fmtDate(today);
@@ -233,21 +248,31 @@ $('helpSpotPhotoInput').addEventListener('change',async e=>{
 });
 $('clearHelpSpotPhoto').addEventListener('click',()=>{
  $('helpSpotPhotoInput').value='';$('helpSpotPhotoPreview').removeAttribute('src');$('helpSpotPhotoPreview').style.display='none';$('clearHelpSpotPhoto').style.display='none';
- if(pendingSpotPhoto){pendingSpotPhoto='';$('spotPhotoInput').value='';}
+ if(pendingSpotPhoto){pendingSpotPhoto='';pendingPhotoMeta={};$('spotPhotoInput').value='';}
  $('helpSpotPhotoStatus').textContent='Photo retirée.';
 });
-$('takeSpotPhoto').addEventListener('click',()=>$('spotPhotoInput').click());
+$('takeSpotPhoto').addEventListener('click',()=>{startCompass();$('spotPhotoInput').click();});
 $('spotPhotoInput').addEventListener('change',async e=>{
   const file=e.target.files&&e.target.files[0]; if(!file)return;
   if(!file.type.startsWith('image/')){$('spotPhotoStatus').textContent='Choisis un fichier image.';return;}
-  $('spotPhotoStatus').textContent='Préparation de la photo…';
+  $('spotPhotoStatus').textContent='Photo préparée ; récupération du GPS…';
   try{
+    const capturedAt=new Date().toISOString();
+    const gps=await getPhotoGps();
+    const heading=latestHeading;
+    const headingAccuracy=latestHeadingAccuracy;
     const data=await compressSpotPhoto(file); pendingSpotPhoto=data;
+    pendingPhotoMeta={capturedAt,lat:gps?.lat??null,lon:gps?.lon??null,gpsAccuracy:gps?.accuracy??null,heading:heading??null,headingAccuracy:headingAccuracy??null};
     $('spotPhotoPreview').src=data; $('spotPhotoPreview').style.display='block'; $('clearSpotPhoto').style.display='inline-block';
-    $('spotPhotoStatus').textContent='Photo prête. Ajoute un poste sur la carte pour l’enregistrer avec cet emplacement.';
+    if(gps){
+      $('newPostLat').value=gps.lat;$('newPostLon').value=gps.lon;
+      $('newPostName').value='Poste photographié';$('newPostForm').style.display='block';
+      $('newPostStatus').textContent=`Position de la photo : ${gpsMetaLabel(pendingPhotoMeta)}. Vérifie le point puis enregistre.`;
+    }
+    $('spotPhotoStatus').textContent=`Photo prête. GPS : ${gpsMetaLabel(pendingPhotoMeta)}. Orientation : ${headingLabel(heading)}. ${gps?'Le formulaire du poste a été positionné automatiquement.':'Positionne le poste sur la carte si le GPS est indisponible.'}`;
   }catch(err){$('spotPhotoStatus').textContent='Impossible de lire cette photo. Essaie de nouveau.';}
 });
-$('clearSpotPhoto').addEventListener('click',()=>{pendingSpotPhoto='';$('spotPhotoInput').value='';$('spotPhotoPreview').removeAttribute('src');$('spotPhotoPreview').style.display='none';$('clearSpotPhoto').style.display='none';$('spotPhotoStatus').textContent='Photo retirée.';});
+$('clearSpotPhoto').addEventListener('click',()=>{pendingSpotPhoto='';pendingPhotoMeta={};$('spotPhotoInput').value='';$('spotPhotoPreview').removeAttribute('src');$('spotPhotoPreview').style.display='none';$('clearSpotPhoto').style.display='none';$('spotPhotoStatus').textContent='Photo retirée.';});
 function compressSpotPhoto(file){return new Promise((resolve,reject)=>{const reader=new FileReader();reader.onerror=reject;reader.onload=()=>{const img=new Image();img.onerror=reject;img.onload=()=>{const max=900,scale=Math.min(1,max/Math.max(img.width,img.height));const canvas=document.createElement('canvas');canvas.width=Math.round(img.width*scale);canvas.height=Math.round(img.height*scale);canvas.getContext('2d').drawImage(img,0,0,canvas.width,canvas.height);resolve(canvas.toDataURL('image/jpeg',0.68));};img.src=reader.result;};reader.readAsDataURL(file);});}
 $('evaluateSpot').addEventListener('click',evaluateSpot);
 function evaluateSpot(){
@@ -320,7 +345,7 @@ function saveNewPost(){
  if(!Number.isFinite(lat)||!Number.isFinite(lon)||Math.abs(lat)>90||Math.abs(lon)>180){$('newPostStatus').textContent='Emplacement invalide. Touche à nouveau la carte.';return;}
  const name=$('newPostName').value.trim()||'Poste à tester';
  const observation=$('photoObservations').value,bait=$('spotBait').value.trim(),groundbait=$('spotGroundbait').value.trim(),hook=$('spotHook').value.trim();
- const post={id:Date.now(),name,lat,lon,date:fmtDate(new Date()),photo:pendingSpotPhoto||'',observation,bait,groundbait,hook,catches:[]};
+ const post={id:Date.now(),name,lat,lon,date:fmtDate(new Date()),photo:pendingSpotPhoto||'',photoMeta:pendingSpotPhoto?{...pendingPhotoMeta}:null,observation,bait,groundbait,hook,catches:[]};
  posts.push(post);
  try{savePosts();}catch(e){posts.pop();$('newPostStatus').textContent='Stockage plein. Exporte tes données ou retire une photo avant de réessayer.';return;}
  pendingSpotPhoto='';$('spotPhotoInput').value='';$('spotPhotoPreview').removeAttribute('src');$('spotPhotoPreview').style.display='none';$('clearSpotPhoto').style.display='none';$('helpSpotPhotoInput').value='';$('helpSpotPhotoPreview').removeAttribute('src');$('helpSpotPhotoPreview').style.display='none';$('clearHelpSpotPhoto').style.display='none';$('helpSpotPhotoStatus').textContent='Photo enregistrée avec le poste.';$('spotPhotoStatus').textContent='Photo associée au poste enregistré.';
@@ -333,8 +358,8 @@ $('addPost').addEventListener('click',()=>{if(!mapReady){initMap(coords?.lat||50
 $('clearPosts').addEventListener('click',()=>{if(confirm('Effacer tous tes postes enregistrés sur cet appareil ?')){posts=[];localStorage.setItem('carpPosts','[]');renderPosts()}});
 function renderPosts(){
  if(!mapReady)return;
- posts.forEach(p=>{if(!p._shown){const photoHtml=p.photo?`<br><img src="${p.photo}" alt="Photo du poste" style="width:180px;max-height:120px;object-fit:cover;border-radius:8px;margin-top:5px">`:'';const obsHtml=p.observation?`<br>${esc(p.observation)}`:'';const baitHtml=p.bait?`<br><b>Appâts :</b> ${esc(p.bait)}`:'';const groundbaitHtml=p.groundbait?`<br><b>Amorçage :</b> ${esc(p.groundbait)}`:'';const hookHtml=p.hook?`<br><b>Hameçon :</b> ${esc(p.hook)}`:'';const m=L.marker([p.lat,p.lon]).addTo(map).bindPopup(`<b>${esc(p.name)}</b>${obsHtml}${baitHtml}${groundbaitHtml}${hookHtml}<br>${p.lat.toFixed(5)}, ${p.lon.toFixed(5)}${photoHtml}`);p._marker=m;p._shown=true;p._marker=m}});
- $('posts').innerHTML=posts.length?posts.map(p=>`<div class="post"><div class="posthead"><strong>${esc(p.name)}</strong><span class="pill">${p.date}</span></div><div class="muted">${p.lat.toFixed(5)}, ${p.lon.toFixed(5)}</div>${p.observation?`<p class="muted">${esc(p.observation)}</p>`:''}${p.bait?`<p><strong>Appâts :</strong> ${esc(p.bait)}</p>`:''}${p.groundbait?`<p><strong>Amorçage :</strong> ${esc(p.groundbait)}</p>`:''}${p.hook?`<p><strong>Hameçon :</strong> ${esc(p.hook)}</p>`:''}${p.photo?`<img src="${p.photo}" alt="Photo du poste ${esc(p.name)}" style="width:100%;max-height:220px;object-fit:contain;border-radius:10px;margin-top:8px;background:#f0f3ef">`:''}<h3>📸 Album des prises (${(p.catches||[]).length})</h3>${(p.catches||[]).length?`<div class="catchalbum">${p.catches.map(c=>`<div class="catchphoto"><img src="${c.photo}" alt="Prise au poste ${esc(p.name)}"><div><strong>${esc(c.date||'Date non renseignée')}</strong>${c.weight?`<div>${esc(c.weight)} kg</div>`:''}${c.notes?`<p>${esc(c.notes)}</p>`:''}<button class="danger" data-delete-catch="${p.id}:${c.id}">Supprimer la photo</button></div></div>`).join('')}</div>`:'<p class="muted">Aucune prise photographiée pour ce poste.</p>'}<input type="file" accept="image/*" capture="environment" data-catch-input="${p.id}" style="display:none"><button class="secondary" style="margin-top:8px;padding:7px 10px" data-add-catch="${p.id}">＋ Ajouter une photo de prise</button><button class="secondary" style="margin-top:8px;padding:7px 10px" data-center="${p.id}">Voir sur la carte</button></div>`).join(''):'<div class="empty">Aucun poste noté. Ouvre la carte et touche un endroit pour ajouter ton premier repère.</div>';
+ posts.forEach(p=>{if(!p._shown){const photoHtml=p.photo?`<br><img src="${p.photo}" alt="Photo du poste" style="width:180px;max-height:120px;object-fit:cover;border-radius:8px;margin-top:5px">`:'';const meta=p.photoMeta||{};const metaHtml=p.photoMeta?`<br><b>GPS photo :</b> ${gpsMetaLabel(meta)}<br><b>Orientation :</b> ${headingLabel(meta.heading)}${meta.capturedAt?`<br><b>Prise de vue :</b> ${new Date(meta.capturedAt).toLocaleString()}`:''}`:'';const obsHtml=p.observation?`<br>${esc(p.observation)}`:'';const baitHtml=p.bait?`<br><b>Appâts :</b> ${esc(p.bait)}`:'';const groundbaitHtml=p.groundbait?`<br><b>Amorçage :</b> ${esc(p.groundbait)}`:'';const hookHtml=p.hook?`<br><b>Hameçon :</b> ${esc(p.hook)}`:'';const m=L.marker([p.lat,p.lon]).addTo(map).bindPopup(`<b>${esc(p.name)}</b>${obsHtml}${metaHtml}${baitHtml}${groundbaitHtml}${hookHtml}<br>${p.lat.toFixed(5)}, ${p.lon.toFixed(5)}${photoHtml}`);p._marker=m;if(p.photoMeta&&Number.isFinite(p.photoMeta.heading)){const rad=p.photoMeta.heading*Math.PI/180,dist=80,dLat=(dist*Math.cos(rad))/111320,dLon=(dist*Math.sin(rad))/(111320*Math.max(0.15,Math.cos(p.lat*Math.PI/180)));p._directionLine=L.polyline([[p.lat,p.lon],[p.lat+dLat,p.lon+dLon]],{color:'#d97706',weight:3,dashArray:'6 5'}).addTo(map);}p._shown=true;p._marker=m}});
+ $('posts').innerHTML=posts.length?posts.map(p=>`<div class="post"><div class="posthead"><strong>${esc(p.name)}</strong><span class="pill">${p.date}</span></div><div class="muted">${p.lat.toFixed(5)}, ${p.lon.toFixed(5)}</div>${p.photoMeta?`<div class="muted">GPS photo : ${gpsMetaLabel(p.photoMeta)} · Orientation : ${headingLabel(p.photoMeta.heading)}</div>`:''}${p.observation?`<p class="muted">${esc(p.observation)}</p>`:''}${p.bait?`<p><strong>Appâts :</strong> ${esc(p.bait)}</p>`:''}${p.groundbait?`<p><strong>Amorçage :</strong> ${esc(p.groundbait)}</p>`:''}${p.hook?`<p><strong>Hameçon :</strong> ${esc(p.hook)}</p>`:''}${p.photo?`<img src="${p.photo}" alt="Photo du poste ${esc(p.name)}" style="width:100%;max-height:220px;object-fit:contain;border-radius:10px;margin-top:8px;background:#f0f3ef">`:''}<h3>📸 Album des prises (${(p.catches||[]).length})</h3>${(p.catches||[]).length?`<div class="catchalbum">${p.catches.map(c=>`<div class="catchphoto"><img src="${c.photo}" alt="Prise au poste ${esc(p.name)}"><div><strong>${esc(c.date||'Date non renseignée')}</strong>${c.weight?`<div>${esc(c.weight)} kg</div>`:''}${c.notes?`<p>${esc(c.notes)}</p>`:''}<button class="danger" data-delete-catch="${p.id}:${c.id}">Supprimer la photo</button></div></div>`).join('')}</div>`:'<p class="muted">Aucune prise photographiée pour ce poste.</p>'}<input type="file" accept="image/*" capture="environment" data-catch-input="${p.id}" style="display:none"><button class="secondary" style="margin-top:8px;padding:7px 10px" data-add-catch="${p.id}">＋ Ajouter une photo de prise</button><button class="secondary" style="margin-top:8px;padding:7px 10px" data-center="${p.id}">Voir sur la carte</button></div>`).join(''):'<div class="empty">Aucun poste noté. Ouvre la carte et touche un endroit pour ajouter ton premier repère.</div>';
  document.querySelectorAll('[data-center]').forEach(b=>b.onclick=()=>{const p=posts.find(x=>x.id==b.dataset.center);if(p){document.querySelector('[data-tab="maptab"]').click();map.setView([p.lat,p.lon],17);p._marker?.openPopup()}});
  bindCatchAlbum();
 }

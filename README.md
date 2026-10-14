@@ -123,3 +123,12 @@ Cette archive ajoute une interface « Analyse IA de la photo » dans l'onglet «
 - Cette version analyse une photo à la demande, mais ne synchronise pas encore les postes ni les photos entre les membres. La base partagée des postes est une étape séparée.
 - Les données locales de la version précédente restent stockées dans le navigateur si le même site et la même origine sont conservés. Faites un export de sauvegarde avant la mise à jour.
 - La photo est redimensionnée côté navigateur avant envoi à l'IA. Ne transmettez que des photos que vous acceptez d'envoyer à un service en ligne.
+
+
+## Version 13 — GPS et orientation automatiques des photos
+
+- Lors de la prise d'une photo depuis le bouton dédié, l'application tente de récupérer une position GPS haute précision et la direction du compas du téléphone.
+- Si le GPS est disponible, le formulaire du nouveau poste est prérempli avec les coordonnées de la photo ; elles restent modifiables avant l'enregistrement.
+- Les postes conservent localement la date/heure, latitude, longitude, précision GPS et cap en degrés lorsqu'ils sont disponibles.
+- La carte affiche une ligne directionnelle indicative de 80 m pour les postes dont le cap est disponible.
+- Les données restent dans le stockage local de l'appareil. Le GPS et le compas dépendent des autorisations, du navigateur, du matériel et des conditions de réception ; le cap n'est pas garanti sur tous les iPhone/navigateurs.
