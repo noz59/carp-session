@@ -418,6 +418,30 @@ function updateSessionAdvice(){
  'Automne':'Compare les bordures, les herbiers résiduels et les cassures. Commence avec une quantité d’appâts mesurée, puis ajuste selon les touches et les signes d’activité.',
  'Hiver':'Recherche d’abord des indices de présence. Privilégie une approche discrète et un amorçage réduit tant que l’activité n’est pas confirmée.'};
  html+='<div class="analysisitem"><strong>🎯 Stratégie saisonnière — '+esc(season)+'</strong><p>'+seasonal[season]+'</p><p>Plan d’eau : '+esc(waterType)+'. Durée prévue : '+esc(duration)+'.</p></div>';
+ // Conseils d’appâts et de quantité : estimation prudente, ajustée à la température mesurée.
+ const durationHours=parseInt(duration,10)||24, durationFactor=durationHours/24;
+ let baitPlan, feedMin, feedMax, reasonTemp;
+ if(tempWater===null){
+   baitPlan='Bouillettes de 12–15 mm ou maïs doux en petite quantité, avec un montage équilibré (wafter/pop-up selon le fond).';
+   feedMin=100; feedMax=250; reasonTemp='Température de l’eau non renseignée : estimation prudente de départ. Mesure-la si possible pour affiner le conseil.';
+ } else if(tempWater<8){
+   baitPlan='Petites bouillettes digestes de 10–12 mm, wafter ou pop-up ; quelques asticots uniquement si autorisés sur le plan d’eau.';
+   feedMin=50; feedMax=150; reasonTemp='Eau très froide : les poissons peuvent s’alimenter moins souvent, commence léger et recherche leur présence.';
+ } else if(tempWater<12){
+   baitPlan='Bouillettes digestes de 10–15 mm, petits pellets et/ou maïs en quantité limitée ; montage équilibré si le fond le permet.';
+   feedMin=100; feedMax=250; reasonTemp='Eau fraîche : amorçage modéré, puis ajuste seulement si tu observes de l’activité ou des touches.';
+ } else if(tempWater<18){
+   baitPlan='Bouillettes de 12–15 mm, maïs et petits pellets ; mélange de particules préparées correctement et de quelques bouillettes.';
+   feedMin=200; feedMax=500; reasonTemp='Température intermédiaire : une amorce mesurée peut être testée, à adapter aux signes d’activité.';
+ } else {
+   baitPlan='Bouillettes de 15–20 mm, maïs/particules préparées et pellets ; par forte chaleur, privilégie de petites quantités régulières et surveille l’activité.';
+   feedMin=250; feedMax=600; reasonTemp='Eau chaude : la consommation peut varier fortement selon l’oxygénation, l’heure et l’activité ; évite de suramorcer.';
+ }
+ if(season==='Hiver'){feedMin=Math.min(feedMin,75);feedMax=Math.min(feedMax,200);}
+ if(season==='Été'&&weather.airTempC>=28){feedMax=Math.min(feedMax,400);}
+ const qMin=Math.max(50,Math.round(feedMin*durationFactor/25)*25), qMax=Math.max(qMin,Math.round(feedMax*durationFactor/25)*25);
+ const windNote=weather.windSpeedKmh>=25?' Vent soutenu prévu : vérifie l’exposition de la berge et la tenue de l’amorçage, sans augmenter automatiquement la quantité.':'';
+ html+='<div class="analysisitem"><strong>🎣 Appâts conseillés</strong><p><b>Type :</b> '+baitPlan+'</p><p><b>Amorçage de départ :</b> environ '+qMin+' à '+qMax+' g d’appâts au total pour '+esc(duration)+', à répartir progressivement plutôt que tout déposer d’un coup.</p><p><b>Pourquoi :</b> '+reasonTemp+' '+(season==='Hiver'?'La saison froide invite aussi à rester discret.':season==='Printemps'?'Au printemps, augmente seulement si les poissons montrent de l’activité.':season==='Été'?'En été, surveille les périodes chaudes et l’état du poisson lors des remises à l’eau.':'En automne, observe les signes d’alimentation avant d’augmenter les apports.')+windNote+'</p><p><b>Réajustement :</b> sans touche ni signe d’activité, reste sur la borne basse et teste un autre montage ou un autre poste ; après des touches, ajoute de petites poignées et note le résultat dans le carnet.</p><p class="muted">Quantités indicatives, pas une règle universelle. Elles supposent une pêche sur un poste et doivent être adaptées au nombre de cannes, à l’activité des poissons, à la réglementation et aux restrictions locales sur les appâts.</p></div>';
  if(scored.length){const best=scored[0];html+='<div class="analysisitem"><strong>📍 Poste à examiner en premier : '+esc(best.name)+'</strong><p>Indice comparatif interne : '+best.score+'. Ce n’est pas une probabilité de capture.</p>'+(best.why.length?'<ul>'+best.why.map(x=>'<li>'+esc(x)+'</li>').join('')+'</ul>':'<p>Peu d’observations enregistrées : inspecte plusieurs postes avant de choisir.</p>')+'<button class="secondary" data-advice-center="'+esc(String(best.id))+'">Voir ce poste sur la carte</button></div>';
    if(scored.length>1)html+='<div class="analysisitem"><strong>Autre poste à comparer</strong><p>'+esc(scored[1].name)+' — compare les signes d’activité, l’accès et la sécurité avant de choisir.</p></div>';
  }else html+='<div class="analysisitem"><strong>📍 Choix du poste</strong><p>Aucun poste enregistré. Ajoute deux ou trois postes observés sur la carte pour pouvoir les comparer.</p></div>';
