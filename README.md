@@ -139,3 +139,12 @@ Cette version incrémente le cache du service worker et supprime les anciens cac
 
 
 Version 19 : les conseils croisés (météo, saison, photos/observations, postes, température de l’eau et carnet) sont regroupés dans l’onglet « Aide au poste ». Le bouton « Conseils » séparé a été supprimé pour éviter la dispersion.
+
+
+## Version 22 — historique complet et profils de pêcheur
+
+- Profil manuel à trois niveaux : Débutant, Intermédiaire et Expert. Le niveau sélectionné est conservé localement et adapte les conseils généraux.
+- Suggestions de progression fondées sur le nombre de sessions et la qualité des comptes rendus. Carp Session ne modifie jamais le niveau sans action de l’utilisateur ; le nombre de captures seul ne définit pas l’expertise.
+- Le carnet conserve le lieu, la date, la durée, les prises, le poids maximal, le poste associé, la température de l’eau et de l’air si renseignées, les appâts/montages, l’amorçage, l’hameçon, la météo observée, les notes, la saison, le type de plan d’eau et un instantané météo disponible.
+- Export JSON complet et import/restauration d’une sauvegarde. L’import remplace les sessions et postes présents sur l’appareil : exporter d’abord les données actuelles.
+- Les données sont conservées dans le stockage local du navigateur sur le même appareil et la même origine. Elles ne sont pas synchronisées dans le cloud. Exporter régulièrement la sauvegarde ; une suppression des données Safari ou de l’application web peut les effacer.

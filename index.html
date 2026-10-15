@@ -67,7 +67,7 @@ footer{text-align:center;color:var(--muted);font-size:.75rem;padding:8px 10px 20
 <div class="card">
 <h2>🧭 Conseils de pêche</h2>
 <div class="row"><div><label for="season">Saison</label><select id="season"><option>Automne</option><option>Hiver</option><option>Printemps</option><option>Été</option></select></div>
-<div><label for="experience">Expérience</label><select id="experience"><option>Débutant</option><option selected>Intermédiaire</option><option>Confirmé</option></select></div></div>
+<div><label for="experience">Expérience</label><select id="experience"><option>Débutant</option><option selected>Intermédiaire</option><option>Expert</option></select></div></div>
 <div id="advice" class="status">Sélectionne ton lieu et ta saison pour afficher les conseils.</div>
 </div>
 </section>
@@ -202,15 +202,30 @@ footer{text-align:center;color:var(--muted);font-size:.75rem;padding:8px 10px 20
 </section>
 
 <section id="logtab" class="panel">
+<div class="card" id="anglerProfileCard">
+<h2>🎓 Mon profil de pêcheur</h2>
+<p class="muted">Choisis ton niveau manuellement. Carp Session observe ensuite la qualité et la régularité des informations de ton carnet pour suggérer une progression ; elle ne change jamais ton niveau sans ton accord.</p>
+<label for="anglerLevel">Niveau actuel</label>
+<select id="anglerLevel"><option>Débutant</option><option>Intermédiaire</option><option>Expert</option></select>
+<div class="buttons"><button id="saveAnglerLevel">Enregistrer mon niveau</button></div>
+<div id="levelProgressStatus" class="status" aria-live="polite">La progression sera évaluée à partir de ton historique.</div>
+<p class="muted">Le nombre de captures ne détermine pas le niveau : la progression repose sur l’expérience documentée, les observations et la régularité des comptes rendus.</p>
+</div>
 <div class="card">
 <h2>📝 Ajouter une session au carnet</h2>
 <label for="logPlace">Lieu</label><input id="logPlace" placeholder="Nom de l’étang / lac">
 <div class="row"><div><label for="logDate">Date</label><input id="logDate" type="date"></div><div><label for="logHours">Durée (heures)</label><input id="logHours" type="number" min="1" max="168" value="24"></div></div>
 <div class="row"><div><label for="logCount">Carpes prises</label><input id="logCount" type="number" min="0" value="0"></div><div><label for="logWeight">Plus gros poisson (kg)</label><input id="logWeight" type="number" min="0" step=".1" placeholder="Ex. 8.5"></div></div>
-<label for="logBait">Appâts / montage</label><input id="logBait" placeholder="Bouillettes, pop-up, montage…">
-<label for="logNotes">Notes météo, poste et observations</label><textarea id="logNotes" placeholder="Heure des touches, vent, profondeur estimée, amorçage…"></textarea>
-<div class="buttons"><button id="saveLog">Enregistrer la session</button><button id="exportLogs" class="secondary">Exporter mes données</button></div>
-<p class="muted">Le carnet est enregistré sur cet appareil dans le navigateur. Export régulier conseillé ; vider les données du navigateur peut effacer le carnet.</p>
+<label for="logPost">Poste pêché (si enregistré)</label><select id="logPost"><option value="">Poste non lié / non enregistré</option></select>
+<div class="row"><div><label for="logWaterTemp">Température de l’eau (°C)</label><input id="logWaterTemp" type="number" min="0" max="40" step="0.1" placeholder="Ex. 16,5"></div><div><label for="logAirTemp">Température de l’air (°C)</label><input id="logAirTemp" type="number" min="-20" max="50" step="0.1" placeholder="Si connue"></div></div>
+<label for="logBait">Appâts et montage</label><input id="logBait" placeholder="Bouillettes, pop-up, montage…">
+<label for="logGroundbait">Amorçage (type, quantité, fréquence)</label><input id="logGroundbait" placeholder="Ex. 300 g de bouillettes, rappel après les touches">
+<label for="logHook">Hameçon / bas de ligne</label><input id="logHook" placeholder="Ex. taille 4, wide gape, longueur du bas de ligne">
+<label for="logWeather">Météo observée</label><input id="logWeather" placeholder="Vent, pression si connue, pluie, ciel…">
+<label for="logNotes">Notes et observations</label><textarea id="logNotes" placeholder="Horaires des touches, activité, fond, résultat des essais, sécurité…"></textarea>
+<div class="buttons"><button id="saveLog">Enregistrer la session</button><button id="exportLogs" class="secondary">Exporter la sauvegarde complète</button></div>
+<label for="importBackup">Restaurer une sauvegarde Carp Session (.json)</label><input id="importBackup" type="file" accept=".json,application/json">
+<div id="backupStatus" class="status" aria-live="polite">L’historique est conservé dans le navigateur de cet appareil. Exporte régulièrement une sauvegarde, notamment avant de changer de téléphone ou de navigateur.</div>
 </div>
 <div class="card"><h2>📚 Mes sessions enregistrées</h2><div id="logs"><div class="empty">Aucune session enregistrée pour le moment.</div></div></div>
 </section>
@@ -410,6 +425,13 @@ function updateSessionAdvice(){
    return {...p,score,why};
  }).sort((a,b)=>b.score-a.score);
  let html='';
+ const anglerLevel=getAnglerLevel();
+ const levelGuidance={
+  'Débutant':'<div class="analysisitem"><strong>🎓 Conseils adaptés — Débutant</strong><p>Choisis un poste facile et sûr, commence avec un montage simple et fiable, puis teste une seule modification à la fois. Note l’heure, l’appât et le résultat pour comprendre ce qui change.</p></div>',
+  'Intermédiaire':'<div class="analysisitem"><strong>🎓 Conseils adaptés — Intermédiaire</strong><p>Compare deux ou trois postes selon les signes d’activité, le vent, les structures et les résultats passés. Ajuste progressivement le montage et l’amorçage, en notant chaque changement pour comparer les sessions.</p></div>',
+  'Expert':'<div class="analysisitem"><strong>🎓 Conseils adaptés — Expert</strong><p>Élabore un plan principal et un scénario alternatif, distingue les observations mesurées des hypothèses, compare les résultats par durée et conditions, puis ajuste la fréquence et la composition de l’amorçage selon les signes d’activité. Les données manquantes restent explicitement inconnues.</p></div>'
+ };
+ html+=levelGuidance[anglerLevel]||levelGuidance['Intermédiaire'];
  if(weather.windGustKmh>=45)html+='<div class="analysisitem"><strong>⚠️ Sécurité en priorité</strong><p>Rafales fortes annoncées ('+Math.round(weather.windGustKmh)+' km/h). Évite les berges exposées, sécurise le matériel et renonce si les conditions deviennent dangereuses.</p></div>';
  if(weather.windSpeedKmh!=null)html+='<div class="analysisitem"><strong>🌬️ Vent actuel prévu</strong><p>'+Math.round(weather.windSpeedKmh)+' km/h, venant du '+(weather.windDirection||'direction non disponible')+'. Compare l’exposition réelle de la berge et les signes d’activité : la direction seule ne permet pas de désigner un meilleur poste.</p></div>';
  const seasonal={
@@ -556,11 +578,21 @@ async function analyzeWater(){
     $('analysisResults').innerHTML=out;
   }catch(e){$('analysisStatus').textContent='L’analyse cartographique n’a pas abouti. Le service peut être temporairement indisponible ou la connexion limitée. Réessaie plus tard.';$('analysisResults').innerHTML='<div class="analysisitem"><strong>À savoir</strong><div class="muted">L’analyse dépend des données OpenStreetMap disponibles. Tu peux toujours marquer tes observations manuellement sur la carte.</div></div>'}
 }
-function getLogs(){return JSON.parse(localStorage.getItem('carpLogs')||'[]')}
-function renderLogs(){const logs=getLogs();$('logs').innerHTML=logs.length?logs.slice().reverse().map(l=>`<div class="logitem"><div class="posthead"><strong>${esc(l.place||'Lieu non précisé')}</strong><span class="pill">${esc(l.date)}</span></div><p class="muted">${l.hours} h · ${l.count} carpe(s) · Plus gros : ${l.weight?esc(l.weight)+' kg':'non renseigné'}</p><div><b>Appâts :</b> ${esc(l.bait||'—')}</div><div style="margin-top:5px">${esc(l.notes||'')}</div><button class="danger" style="margin-top:8px;padding:7px 10px" data-del="${l.id}">Supprimer</button></div>`).join(''):'<div class="empty">Aucune session enregistrée pour le moment.</div>';document.querySelectorAll('[data-del]').forEach(b=>b.onclick=()=>{if(confirm('Supprimer cette session ?')){localStorage.setItem('carpLogs',JSON.stringify(getLogs().filter(l=>l.id!=b.dataset.del)));renderLogs()}})}
-$('saveLog').addEventListener('click',()=>{const l={id:Date.now(),place:$('logPlace').value.trim(),date:$('logDate').value,hours:+$('logHours').value||24,count:+$('logCount').value||0,weight:$('logWeight').value,bait:$('logBait').value.trim(),notes:$('logNotes').value.trim()};const logs=getLogs();logs.push(l);localStorage.setItem('carpLogs',JSON.stringify(logs));renderLogs();updateSessionAdvice();alert('Session enregistrée sur cet appareil.')});
-$('exportLogs').addEventListener('click',()=>{const data={sessions:getLogs(),postes:posts};const blob=new Blob([JSON.stringify(data,null,2)],{type:'application/json'});const url=URL.createObjectURL(blob);const a=document.createElement('a');a.href=url;a.download='carp-session-export.json';a.click();URL.revokeObjectURL(url)});
-initMap();renderLogs();renderPosts();updateAdvice();updateSessionAdvice();
+function getLogs(){try{return JSON.parse(localStorage.getItem('carpLogs')||'[]')}catch(e){return []}}
+function getAnglerLevel(){return localStorage.getItem('carpAnglerLevel')||$('experience').value||'Intermédiaire'}
+function saveAnglerLevel(level){localStorage.setItem('carpAnglerLevel',level);$('anglerLevel').value=level;$('experience').value=level;updateAdvice();renderLevelProgress();}
+function renderPostOptions(){const sel=$('logPost');if(!sel)return;const previous=sel.value;sel.innerHTML='<option value="">Poste non lié / non enregistré</option>'+posts.map(p=>`<option value="${String(p.id)}">${esc(p.name)}</option>`).join('');if([...sel.options].some(o=>o.value===previous))sel.value=previous;}
+function renderLevelProgress(){const logs=getLogs(),level=getAnglerLevel(),status=$('levelProgressStatus');if(!status)return;const complete=logs.filter(l=>(l.bait||'').trim()&&(l.groundbait||'').trim()&&(l.notes||'').trim()).length;let suggestion='';if(level==='Débutant'&&logs.length>=5&&complete>=3)suggestion='Tu as documenté plusieurs sessions et tes appâts, ton amorçage et tes observations. Tu peux envisager le niveau Intermédiaire si tu es à l’aise avec les montages et la lecture du poste.';else if(level==='Intermédiaire'&&logs.length>=12&&complete>=8)suggestion='Ton carnet contient un historique conséquent et détaillé. Si tu sais comparer les postes, adapter les montages et ajuster l’amorçage selon les observations, tu peux envisager le niveau Expert.';else if(level==='Expert')suggestion='Profil Expert sélectionné. Les conseils seront plus techniques ; tu peux revenir à un niveau inférieur à tout moment.';else suggestion=`Progression en cours : ${logs.length} session(s) enregistrée(s), dont ${complete} avec appâts, amorçage et observations détaillés. Les suggestions restent indicatives.`;status.textContent=suggestion;}
+function renderLogs(){const logs=getLogs();$('logs').innerHTML=logs.length?logs.slice().reverse().map(l=>`<div class="logitem"><div class="posthead"><strong>${esc(l.place||'Lieu non précisé')}${l.postName?' · '+esc(l.postName):''}</strong><span class="pill">${esc(l.date||'Date non renseignée')}</span></div><p class="muted">${Number(l.hours)||0} h · ${Number(l.count)||0} carpe(s) · Plus gros : ${l.weight?esc(l.weight)+' kg':'non renseigné'}${l.waterTempC!==''&&l.waterTempC!=null?' · Eau '+esc(l.waterTempC)+' °C':''}</p><div><b>Appâts / montage :</b> ${esc(l.bait||'—')}</div><div><b>Amorçage :</b> ${esc(l.groundbait||'—')}</div><div><b>Hameçon :</b> ${esc(l.hook||'—')}</div><div><b>Météo :</b> ${esc(l.weatherNotes||'—')}</div><div style="margin-top:5px">${esc(l.notes||'')}</div><button class="danger" style="margin-top:8px;padding:6px 10px" data-del="${l.id}">Supprimer</button></div>`).join(''):'<div class="empty">Aucune session enregistrée pour le moment.</div>';document.querySelectorAll('[data-del]').forEach(b=>b.onclick=()=>{if(confirm('Supprimer cette session ?')){localStorage.setItem('carpLogs',JSON.stringify(getLogs().filter(l=>String(l.id)!==String(b.dataset.del))));renderLogs();renderLevelProgress();updateSessionAdvice()}});renderLevelProgress();}
+$('saveAnglerLevel').addEventListener('click',()=>{saveAnglerLevel($('anglerLevel').value);$('levelProgressStatus').textContent='Niveau enregistré : '+getAnglerLevel()+'. Le niveau ne changera pas automatiquement.';});
+$('anglerLevel').addEventListener('change',()=>{});
+$('experience').addEventListener('change',()=>saveAnglerLevel($('experience').value));
+$('saveLog').addEventListener('click',()=>{const l={id:Date.now(),place:$('logPlace').value.trim(),date:$('logDate').value,hours:+$('logHours').value||24,count:+$('logCount').value||0,weight:$('logWeight').value,bait:$('logBait').value.trim(),groundbait:$('logGroundbait').value.trim(),hook:$('logHook').value.trim(),weatherNotes:$('logWeather').value.trim(),notes:$('logNotes').value.trim(),postId:$('logPost').value||'',postName:posts.find(p=>String(p.id)===$('logPost').value)?.name||'',waterTempC:$('logWaterTemp').value,airTempC:$('logAirTemp').value,season:$('season').value,waterType:$('waterType').value,weatherSnapshot:latestWeatherSnapshot?{...latestWeatherSnapshot}:null,anglerLevel:getAnglerLevel(),createdAt:new Date().toISOString()};const logs=getLogs();logs.push(l);try{localStorage.setItem('carpLogs',JSON.stringify(logs));renderLogs();updateSessionAdvice();$('backupStatus').textContent='Session enregistrée durablement dans le navigateur de cet appareil. Exporte une sauvegarde pour éviter toute perte si les données du navigateur sont effacées.';alert('Session enregistrée sur cet appareil.')}catch(e){alert('Le stockage semble plein. Exporte tes données et retire des photos si nécessaire. La session n’a pas pu être enregistrée.')}});
+function exportBackup(){const data={format:'carp-session-backup',version:22,exportedAt:new Date().toISOString(),profile:{level:getAnglerLevel()},sessions:getLogs(),postes:posts.map(({_shown,_marker,...p})=>p),waterTemp:localStorage.getItem('carpWaterTemp')};const blob=new Blob([JSON.stringify(data,null,2)],{type:'application/json'});const url=URL.createObjectURL(blob);const a=document.createElement('a');a.href=url;a.download='carp-session-sauvegarde-'+new Date().toISOString().slice(0,10)+'.json';document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),1000);$('backupStatus').textContent='Sauvegarde complète exportée : profil, historique des sessions, postes et données associées. Garde ce fichier en lieu sûr.';}
+$('exportLogs').addEventListener('click',exportBackup);
+$('importBackup').addEventListener('change',async e=>{const file=e.target.files?.[0];if(!file)return;try{const data=JSON.parse(await file.text());if(!data||!Array.isArray(data.sessions)||!Array.isArray(data.postes))throw new Error('format');if(!confirm('Restaurer cette sauvegarde ? Les sessions et postes actuels seront remplacés par ceux du fichier. Exporte d’abord une sauvegarde actuelle si tu veux les garder.')){e.target.value='';return;}localStorage.setItem('carpLogs',JSON.stringify(data.sessions));localStorage.setItem('carpPosts',JSON.stringify(data.postes));if(data.profile?.level&&['Débutant','Intermédiaire','Expert'].includes(data.profile.level))localStorage.setItem('carpAnglerLevel',data.profile.level);if(data.waterTemp!=null)localStorage.setItem('carpWaterTemp',data.waterTemp);$('anglerLevel').value=getAnglerLevel();$('experience').value=getAnglerLevel();posts=JSON.parse(localStorage.getItem('carpPosts')||'[]').map(p=>({...p,catches:Array.isArray(p.catches)?p.catches:[]}));renderPostOptions();renderLogs();renderPosts();updateAdvice();updateSessionAdvice();$('backupStatus').textContent='Sauvegarde restaurée. Vérifie les postes et l’historique après import.';}catch(err){$('backupStatus').textContent='Import impossible : ce fichier ne semble pas être une sauvegarde Carp Session valide.';}finally{e.target.value='';}});
+const storedLevel=localStorage.getItem('carpAnglerLevel');if(storedLevel&&['Débutant','Intermédiaire','Expert'].includes(storedLevel)){$('anglerLevel').value=storedLevel;$('experience').value=storedLevel;}else{$('anglerLevel').value=$('experience').value;localStorage.setItem('carpAnglerLevel',$('experience').value)}
+renderPostOptions();initMap();renderLogs();renderPosts();updateAdvice();updateSessionAdvice();
 if('serviceWorker' in navigator && location.protocol.startsWith('http'))navigator.serviceWorker.register('./sw.js').catch(()=>{});
 </script>
 
