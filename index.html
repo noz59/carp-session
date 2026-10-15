@@ -34,7 +34,7 @@ footer{text-align:center;color:var(--muted);font-size:.75rem;padding:8px 10px 20
 <header><div class="eyebrow">Assistant de session</div><h1>🎣 Carp Session</h1><p>Météo locale · carte des postes · stratégie · carnet de pêche</p></header>
 <main>
 <nav class="tabs" aria-label="Navigation">
-<button class="tab active" data-tab="prep">Préparer</button><button class="tab" data-tab="maptab">Carte & postes</button><button class="tab" data-tab="helptab">Aide au poste</button><button class="tab" data-tab="adviceTab">Conseils</button><button class="tab" data-tab="logtab">Carnet</button>
+<button class="tab active" data-tab="prep">Préparer</button><button class="tab" data-tab="maptab">Carte & postes</button><button class="tab" data-tab="helptab">Aide au poste</button><button class="tab" data-tab="logtab">Carnet</button>
 </nav>
 <section id="prep" class="panel active">
 <div class="card">
@@ -110,6 +110,14 @@ footer{text-align:center;color:var(--muted);font-size:.75rem;padding:8px 10px 20
 
 </section>
 <section id="helptab" class="panel">
+<div class="card">
+<h2>🧠 Conseils croisés pour choisir le poste</h2>
+<p class="muted">Cette aide croise les postes enregistrés, les photos et observations, la météo chargée, la saison, la température de l’eau et ton carnet de sessions. Les recommandations sont des pistes de pêche, pas une garantie de capture.</p>
+<div class="buttons"><button id="refreshSessionAdvice">Actualiser les conseils croisés</button><button id="openSpotRanking" class="secondary">Aller au classement des postes</button></div>
+<div id="sessionAdviceStatus" class="status" aria-live="polite">Les conseils seront calculés à partir des données disponibles sur cet appareil.</div>
+<div id="sessionAdviceResults"></div>
+<p class="muted">Les données non renseignées ne sont pas devinées. Vérifie toujours les accès autorisés, la réglementation et la sécurité de la berge.</p>
+
 <div class="card">
 <h2>🏆 Comparer mes spots</h2>
 <p class="muted">Classe tes postes selon les indices observés, la saison, la température de l’eau enregistrée et la météo sauvegardée avec chaque poste. Le score est heuristique : il compare des indices, pas une probabilité de capture.</p>
@@ -192,16 +200,7 @@ footer{text-align:center;color:var(--muted);font-size:.75rem;padding:8px 10px 20
 </div>
 <div class="card"><h2>Comment lire le plan d’eau</h2><ul><li>Observe les sauts, fouilles, marsouinages et passages de poissons avant de t’installer.</li><li>Teste plusieurs profondeurs et distances si le règlement et la configuration le permettent.</li><li>Repère les bordures, herbiers, cassures et zones abritées sans supposer leur profondeur depuis la carte seule.</li><li>Vérifie l’accès, le droit de pêche, les horaires et les règles locales avant de pêcher.</li></ul></div>
 </section>
-<section id="adviceTab" class="panel">
-<div class="card">
-<h2>🧠 Conseils personnalisés de session</h2>
-<p class="muted">Cette synthèse croise les postes enregistrés, les observations, la météo chargée, la saison et ton carnet. Les recommandations sont des pistes de pêche, pas une garantie de capture.</p>
-<div class="buttons"><button id="refreshSessionAdvice">Actualiser les conseils</button><button id="openSpotRanking" class="secondary">Comparer les postes</button></div>
-<div id="sessionAdviceStatus" class="status" aria-live="polite">Les conseils seront calculés à partir des données disponibles sur cet appareil.</div>
-<div id="sessionAdviceResults"></div>
-<p class="muted">Les données non renseignées ne sont pas devinées. Vérifie toujours les accès autorisés, la réglementation et la sécurité de la berge.</p>
-</div>
-</section>
+
 <section id="logtab" class="panel">
 <div class="card">
 <h2>📝 Ajouter une session au carnet</h2>
@@ -241,7 +240,7 @@ function gpsMetaLabel(m){return m&&Number.isFinite(m.lat)&&Number.isFinite(m.lon
 function savePosts(){const clean=posts.map(({_shown,_marker,...p})=>p);localStorage.setItem('carpPosts',JSON.stringify(clean));}
 const fmtDate=(d)=>d.toISOString().slice(0,10);
 const today=new Date(); $('sessionDate').value=fmtDate(today); $('logDate').value=fmtDate(today);
-document.querySelectorAll('.tab').forEach(b=>b.addEventListener('click',()=>{document.querySelectorAll('.tab').forEach(x=>x.classList.toggle('active',x===b));document.querySelectorAll('.panel').forEach(x=>x.classList.toggle('active',x.id===b.dataset.tab));if(b.dataset.tab==='maptab'&&map){setTimeout(()=>map.invalidateSize(),80)}if(b.dataset.tab==='adviceTab'&&typeof updateSessionAdvice==='function'){updateSessionAdvice()}}));
+document.querySelectorAll('.tab').forEach(b=>b.addEventListener('click',()=>{document.querySelectorAll('.tab').forEach(x=>x.classList.toggle('active',x===b));document.querySelectorAll('.panel').forEach(x=>x.classList.toggle('active',x.id===b.dataset.tab));if(b.dataset.tab==='maptab'&&map){setTimeout(()=>map.invalidateSize(),80)}if(b.dataset.tab==='helptab'&&typeof updateSessionAdvice==='function'){updateSessionAdvice()}}));
 function status(msg,warning=false){$('locStatus').textContent=msg;$('locStatus').className='status'+(warning?' warning':'')}
 function initMap(lat=50.36,lon=3.52){if(mapReady){map.setView([lat,lon],13);return}map=L.map('map').setView([lat,lon],13);L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19,attribution:'&copy; OpenStreetMap'}).addTo(map);map.on('click',e=>{if(!coords){status('Poste placé sur la carte. Pour la météo, tu peux aussi sélectionner un lieu ou utiliser le GPS.');}addPostAt(e.latlng.lat,e.latlng.lng)});mapReady=true;renderPosts()}
 function setLocation(lat,lon,label){coords={lat,lon};$('place').value=label||$('place').value||'Lieu sélectionné';$('logPlace').value=$('place').value;status=`Lieu sélectionné : ${$('place').value} · ${lat.toFixed(4)}, ${lon.toFixed(4)}`;initMap(lat,lon);if(selectedMarker)selectedMarker.remove();selectedMarker=L.marker([lat,lon]).addTo(map).bindPopup('Lieu de session').openPopup();getWeather();updateAdvice()}
@@ -409,7 +408,7 @@ function updateSessionAdvice(){
  out.querySelectorAll('[data-advice-center]').forEach(b=>b.onclick=()=>{const p=posts.find(x=>String(x.id)===b.dataset.adviceCenter);if(!p)return;document.querySelector('[data-tab="maptab"]').click();if(mapReady){map.setView([p.lat,p.lon],17);if(p._marker)p._marker.openPopup();}});
 }
 $('refreshSessionAdvice').addEventListener('click',updateSessionAdvice);
-$('openSpotRanking').addEventListener('click',()=>document.querySelector('[data-tab="helptab"]').click());
+$('openSpotRanking').addEventListener('click',()=>{const el=$('rankSpots');if(el)el.scrollIntoView({behavior:'smooth',block:'center'});});
 
 function addPostAt(lat,lon){
  $('newPostLat').value=lat;$('newPostLon').value=lon;

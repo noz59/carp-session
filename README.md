@@ -136,3 +136,6 @@ Cette archive ajoute une interface « Analyse IA de la photo » dans l'onglet «
 
 ## Correctif v17
 Cette version incrémente le cache du service worker et supprime les anciens caches à l'activation afin d'éviter que l'iPhone continue à afficher une ancienne version de l'interface. Le champ « Température de l’eau » se trouve dans l’onglet « Préparer » ; il est enregistré localement avec le bouton « Enregistrer ».
+
+
+Version 19 : les conseils croisés (météo, saison, photos/observations, postes, température de l’eau et carnet) sont regroupés dans l’onglet « Aide au poste ». Le bouton « Conseils » séparé a été supprimé pour éviter la dispersion.
